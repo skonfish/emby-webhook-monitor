@@ -1,3 +1,4 @@
+
 import express from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
@@ -10,10 +11,23 @@ import fs from 'fs';
 const PORT = process.env.PORT || 3000;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// --- 目录初始化 ---
+// 确保 db 目录存在，否则 lowdb 可能会报错
+const dbDir = path.join(__dirname, 'db');
+if (!fs.existsSync(dbDir)){
+    try {
+        fs.mkdirSync(dbDir, { recursive: true });
+        console.log('数据库目录已创建:', dbDir);
+    } catch (err) {
+        console.error('无法创建数据库目录:', err);
+    }
+}
+
 // --- 数据库初始化 (使用 lowdb 存储 JSON 文件) ---
 // 默认数据结构
 const defaultData = { posts: [] };
-const db = await JSONFilePreset('db/db.json', defaultData);
+const dbPath = path.join(dbDir, 'db.json');
+const db = await JSONFilePreset(dbPath, defaultData);
 
 const app = express();
 
@@ -25,10 +39,12 @@ app.use(bodyParser.json());
 // 简单的 IP 归属地模拟 (生产环境建议接入 geoip-lite 或在线 API)
 const resolveIpLocation = (ip) => {
   // 这里为了演示，如果是局域网 IP 返回内网，否则随机返回一个城市
-  if (ip.startsWith('192.168.') || ip.startsWith('10.') || ip === '127.0.0.1') {
-    return '内网 IP';
+  if (!ip) return '未知 IP';
+  if (ip.startsWith('192.168.') || ip.startsWith('10.') || ip === '127.0.0.1' || ip.startsWith('172.')) {
+    return '内网 / 局域网';
   }
-  const cities = ['中国, 北京', '中国, 上海', '中国, 广州', '美国, 洛杉矶', '日本, 东京'];
+  // TODO: 在 v0.2 版本中接入真实的 GeoIP 库
+  const cities = ['中国, 北京', '中国, 上海', '中国, 广州', '美国, 洛杉矶', '日本, 东京', '互联网 IP'];
   return cities[Math.floor(Math.random() * cities.length)];
 };
 
@@ -41,6 +57,7 @@ app.post('/webhook', async (req, res) => {
     console.log('收到 Webhook 事件:', data.Event);
 
     // 只处理 playback.start 事件
+    // 注意：Emby 有时发送 "playback.start"，有时可能是 "system.notification" 包含播放信息，目前仅严格匹配 playback.start
     if (data.Event && data.Event.toLowerCase().includes('playback.start')) {
       
       const username = data.User?.Name || 'Unknown User';
@@ -76,10 +93,10 @@ app.post('/webhook', async (req, res) => {
         rawEvent: data.Event
       };
 
-      // 写入数据库
+      // 写入数据库 (unshift 保证最新的在前面)
       await db.update(({ posts }) => posts.unshift(newRecord));
       
-      console.log(`已记录播放: ${username} 正在观看 ${mediaTitle}`);
+      console.log(`[记录成功] 用户: ${username} | 影片: ${mediaTitle} | IP: ${ip}`);
     }
 
     res.status(200).send('Webhook received');
@@ -91,14 +108,24 @@ app.post('/webhook', async (req, res) => {
 
 // 2. 前端获取数据的 API
 app.get('/api/history', (req, res) => {
-  const { posts } = db.data;
-  res.json(posts);
+  try {
+    // 重新读取，防止缓存
+    db.read(); 
+    const { posts } = db.data;
+    res.json(posts);
+  } catch (e) {
+    res.status(500).json({ error: "Read DB failed" });
+  }
 });
 
 // 3. 清空数据 API
 app.delete('/api/history', async (req, res) => {
-  await db.update((data) => { data.posts = [] });
-  res.json({ success: true });
+  try {
+    await db.update((data) => { data.posts = [] });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: "Delete failed" });
+  }
 });
 
 // --- 生产环境服务前端静态文件 ---
@@ -112,9 +139,14 @@ if (fs.existsSync(distPath)) {
       res.sendFile(path.join(distPath, 'index.html'));
     }
   });
+} else {
+    console.log("提示: 'dist' 目录不存在。如果是开发环境请忽略，生产环境请确保已执行构建。");
 }
 
 app.listen(PORT, () => {
-  console.log(`服务已启动: http://localhost:${PORT}`);
-  console.log(`Webhook 地址: http://localhost:${PORT}/webhook`);
+  console.log('-------------------------------------------');
+  console.log(` Emby Webhook Monitor v0.1`);
+  console.log(` 服务端口: ${PORT}`);
+  console.log(` Webhook URL: http://your-ip:${PORT}/webhook`);
+  console.log('-------------------------------------------');
 });

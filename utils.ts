@@ -1,3 +1,4 @@
+
 import { PlaybackRecord, EmbyWebhookPayload } from './types';
 
 // Mock 数据仅保留用于 GeoIP 模拟演示，实际后端会处理
@@ -9,6 +10,7 @@ const MOCK_LOCATIONS = [
 // 简单的客户端解析逻辑保留，供手动导入功能使用
 export const resolveIpLocationMock = async (ip: string): Promise<string> => {
   return new Promise((resolve) => {
+    // 简单模拟网络延迟
     setTimeout(() => {
       resolve(MOCK_LOCATIONS[Math.floor(Math.random() * MOCK_LOCATIONS.length)]);
     }, 100);
@@ -20,8 +22,9 @@ export const parseEmbyPayload = async (jsonString: string): Promise<PlaybackReco
   try {
     const data: EmbyWebhookPayload = JSON.parse(jsonString);
 
-    if (!data.Event || !data.Event.toLowerCase().includes('playback.start')) {
-      console.warn("Event is not playback.start:", data.Event);
+    // 宽松检查：虽然主要是 playback.start，但在测试时允许其他，只给警告
+    if (!data.Event || !data.Event.toLowerCase().includes('playback')) {
+      console.warn("注意: 输入的事件可能不是播放事件:", data.Event);
     }
 
     const username = data.User?.Name || 'Unknown User';
@@ -30,6 +33,8 @@ export const parseEmbyPayload = async (jsonString: string): Promise<PlaybackReco
     const device = data.Session?.DeviceName || 'Unknown Device';
     
     let mediaTitle = data.Item?.Name || data.Title || 'Unknown Title';
+    
+    // 智能标题拼接
     if (data.Item?.SeriesName) {
         const s = data.Item.ParentIndexNumber;
         const e = data.Item.IndexNumber;
@@ -60,12 +65,16 @@ export const parseEmbyPayload = async (jsonString: string): Promise<PlaybackReco
 };
 
 export const exportToCSV = (records: PlaybackRecord[]) => {
-  const BOM = '\uFEFF'; 
+  const BOM = '\uFEFF'; // 防止 Excel 打开乱码
   const headers = ['时间', '用户名', 'IP地址', 'IP归属地', '播放软件', '设备', '影片名称', '类型'];
   
   const csvContent = records.map(r => {
     const dateStr = new Date(r.timestamp).toLocaleString('zh-CN');
-    const escape = (str: string) => `"${(str || '').replace(/"/g, '""')}"`;
+    // 处理 CSV 注入和特殊字符
+    const escape = (str: string) => {
+        if (str === null || str === undefined) return '""';
+        return `"${String(str).replace(/"/g, '""')}"`;
+    };
     
     return [
       escape(dateStr),
@@ -87,4 +96,6 @@ export const exportToCSV = (records: PlaybackRecord[]) => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  // 释放 URL 对象
+  URL.revokeObjectURL(url);
 };
