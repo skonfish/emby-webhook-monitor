@@ -18,7 +18,20 @@
 
 ## 🚀 快速开始 (Docker Compose)
 
-这是最推荐的部署方式。
+### 步骤 0: 首次代码上传 (开发者/部署者)
+如果你是刚创建了仓库，请先在**本地电脑**将代码上传到 GitHub：
+```bash
+# 初始化并上传代码
+git init
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin https://github.com/skonfish/emby-webhook-monitor.git
+git push -u origin main
+```
+
+### 步骤 1: 服务器部署
+在你的 NAS 或服务器 (如 Unraid/群晖) 上执行：
 
 1.  **下载代码**
     ```bash
@@ -47,6 +60,19 @@
     *   **Events**: 勾选 `Playback Start` (播放开始)。建议只勾选此项，以保持数据整洁。
 5.  点击保存。
 
+## ❓ 常见问题 (FAQ)
+
+**Q: 仓库已经是 Public 了，为什么 `git clone` 还是提示 `Authentication failed` 或要求输入密码？**
+A: 这通常不是权限问题，而是**仓库地址错误**。
+*   GitHub 为了安全，当你尝试克隆一个**不存在**或**名字拼错**的仓库时，它不会提示 "Not Found"，而是假装它可能是一个私有仓库并要求登录。
+*   **解决方法**：请仔细检查你的 `git clone` 命令中的 URL，确保仓库名拼写与网页端完全一致，且仓库确实已创建。
+
+**Q: Docker 启动后报错找不到 `db` 目录？**
+A: V0.1 版本已修复此问题，程序会自动检测并创建目录。如果仍有问题，请手动在项目根目录执行 `mkdir db`。
+
+**Q: 为什么 IP 归属地显示不准确？**
+A: 目前版本为了轻量化，使用了模拟数据或简单的内网判断。计划在 V0.2 版本中接入 GeoIP 库以提供精确的地理位置服务。
+
 ## 🛠️ 本地开发
 
 如果你想参与开发或修改源码：
@@ -63,7 +89,6 @@
     # 或者
     node server.js # 启动后端 (前端需要 build 后才能被后端 serve)
     ```
-    *注意：在纯开发模式下，你需要手动处理跨域或代理，建议直接使用 Docker 调试完整流程。*
 
 ## 📝 待办事项 (TODO)
 
