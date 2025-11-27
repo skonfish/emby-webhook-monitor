@@ -1,0 +1,5 @@
+{
+  "name": "Emby play mornit",
+  "description": "接收并分析 Emby Webhook 播放通知，支持数据筛选与导出。",
+  "requestFramePermissions": []
+}

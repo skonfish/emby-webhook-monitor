@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  emby-monitor:
+    build: .
+    image: emby-monitor:latest
+    container_name: emby_monitor
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # 挂载数据库目录，确保重启后数据不丢失
+      - ./emby_data:/app/db
+    environment:
+      - PORT=3000
+      - TZ=Asia/Shanghai
