@@ -22,7 +22,7 @@
 
 1.  **下载代码**
     ```bash
-    git clone https://github.com/your-username/emby-webhook-monitor.git
+    git clone https://github.com/skonfish/emby-webhook-monitor.git
     cd emby-webhook-monitor
     ```
 
