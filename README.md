@@ -32,7 +32,7 @@
     ```
 
 3.  **访问面板**
-    打开浏览器访问 `http://localhost:3000`（或你的服务器 IP:3000）。
+    打开浏览器访问 `http://localhost:33096`（或你的服务器 IP:33096）。
 
 ## ⚙️ Emby 配置指南
 
@@ -42,7 +42,7 @@
 2.  进入 **设置 (Settings)** -> **Webhooks**。
 3.  点击 **添加 Webhook (Add Webhook)**。
 4.  配置如下：
-    *   **Url**: `http://<你的服务器IP>:3000/webhook`
+    *   **Url**: `http://<你的服务器IP>:33096/webhook`
     *   **Request Content Type**: `application/json` (默认)
     *   **Events**: 勾选 `Playback Start` (播放开始)。建议只勾选此项，以保持数据整洁。
 5.  点击保存。

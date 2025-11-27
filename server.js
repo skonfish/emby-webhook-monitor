@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 
 // --- 配置部分 ---
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 33096;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // --- 目录初始化 ---
