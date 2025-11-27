@@ -36,16 +36,48 @@ app.use(bodyParser.json());
 
 // --- 辅助函数 ---
 
-// 简单的 IP 归属地模拟 (生产环境建议接入 geoip-lite 或在线 API)
-const resolveIpLocation = (ip) => {
-  // 这里为了演示，如果是局域网 IP 返回内网，否则随机返回一个城市
-  if (!ip) return '未知 IP';
-  if (ip.startsWith('192.168.') || ip.startsWith('10.') || ip === '127.0.0.1' || ip.startsWith('172.')) {
+// IP 归属地解析 (接入 PCOnline 接口，专为中国大陆优化)
+const resolveIpLocation = async (rawIp) => {
+  if (!rawIp) return '未知 IP';
+
+  // 清洗 IP (处理 IPv6 映射的 IPv4)
+  const ip = rawIp.replace('::ffff:', '');
+
+  // 内网检测
+  if (
+    ip === '127.0.0.1' || 
+    ip === '::1' || 
+    ip.startsWith('192.168.') || 
+    ip.startsWith('10.') || 
+    (ip.startsWith('172.') && parseInt(ip.split('.')[1], 10) >= 16 && parseInt(ip.split('.')[1], 10) <= 31)
+  ) {
     return '内网 / 局域网';
   }
-  // TODO: 在 v0.2 版本中接入真实的 GeoIP 库
-  const cities = ['中国, 北京', '中国, 上海', '中国, 广州', '美国, 洛杉矶', '日本, 东京', '互联网 IP'];
-  return cities[Math.floor(Math.random() * cities.length)];
+
+  try {
+    // 使用太平洋网络 (PCOnline) 接口，支持精确到省市区
+    // 注意：PCOnline 返回的数据是 GBK 编码
+    // 设置 5 秒超时，防止 API 无响应阻塞请求
+    const response = await fetch(`http://whois.pconline.com.cn/ip.jsp?ip=${ip}`, {
+        signal: AbortSignal.timeout(5000) 
+    });
+
+    if (!response.ok) throw new Error('API Request failed');
+
+    const arrayBuffer = await response.arrayBuffer();
+    // Node.js 支持 TextDecoder 解码 GBK
+    const decoder = new TextDecoder('gbk');
+    const text = decoder.decode(arrayBuffer);
+    
+    // 接口返回格式通常为 "xx省xx市xx区 ISP" 或单纯地址，去除首尾空格即可
+    // 示例: "青海省西宁市城北区 电信"
+    return text.trim() || '未知位置';
+
+  } catch (error) {
+    console.error(`IP解析失败 [${ip}]:`, error.message);
+    // 降级方案：如果 API 失败，返回错误提示
+    return '未知位置 (API超时)';
+  }
 };
 
 // --- API 路由 ---
@@ -78,7 +110,8 @@ app.post('/webhook', async (req, res) => {
         }
       }
 
-      const location = resolveIpLocation(ip);
+      // 异步获取位置信息
+      const location = await resolveIpLocation(ip);
 
       const newRecord = {
         id: Math.random().toString(36).substring(2, 9),
@@ -96,7 +129,7 @@ app.post('/webhook', async (req, res) => {
       // 写入数据库 (unshift 保证最新的在前面)
       await db.update(({ posts }) => posts.unshift(newRecord));
       
-      console.log(`[记录成功] 用户: ${username} | 影片: ${mediaTitle} | IP: ${ip}`);
+      console.log(`[记录成功] 用户: ${username} | 影片: ${mediaTitle} | IP: ${ip} | 位置: ${location}`);
     }
 
     res.status(200).send('Webhook received');

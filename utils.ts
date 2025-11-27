@@ -1,10 +1,14 @@
 
 import { PlaybackRecord, EmbyWebhookPayload } from './types';
 
-// Mock 数据仅保留用于 GeoIP 模拟演示，实际后端会处理
+// Mock 数据 - 手动测试时使用的模拟位置
+// 真实环境会通过 server.js 的后端接口进行解析
 const MOCK_LOCATIONS = [
-  '中国, 北京', '中国, 上海', '中国, 广州', '中国, 深圳', 
-  '中国, 成都', '美国, 洛杉矶', '日本, 东京', '新加坡'
+  '青海省西宁市城北区 电信', 
+  '北京市海淀区中关村 联通', 
+  '广东省深圳市南山区 移动', 
+  '四川省成都市武侯区 电信',
+  '内网 / 局域网'
 ];
 
 // 简单的客户端解析逻辑保留，供手动导入功能使用
@@ -45,6 +49,7 @@ export const parseEmbyPayload = async (jsonString: string): Promise<PlaybackReco
         }
     }
 
+    // 注意：手动导入时暂时使用 Mock 位置，真实 Webhook 会走后端解析
     const location = await resolveIpLocationMock(ip);
 
     return {
